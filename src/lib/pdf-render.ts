@@ -33,7 +33,7 @@ export type PdfImage = { x: number; y: number; w: number; h: number; src: string
 export type RenderedPage = { src: string; width: number; height: number; texts: PageText[]; frags: Frag[]; images?: PdfImage[] };
 
 /** Render each page to a JPEG data URL. width/height are the displayed size in PDF points. */
-export async function renderPages(bytes: ArrayBuffer, scale = 2): Promise<RenderedPage[]> {
+export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page: RenderedPage, index: number, total: number) => void): Promise<RenderedPage[]> {
   const pdfjs = await getPdfjs();
   const loadingTask = pdfjs.getDocument({ data: new Uint8Array(bytes.slice(0)), fontExtraProperties: true });
   const doc = await loadingTask.promise;
@@ -45,7 +45,7 @@ export async function renderPages(bytes: ArrayBuffer, scale = 2): Promise<Render
     const canvas = document.createElement("canvas");
     canvas.width = Math.ceil(vp.width);
     canvas.height = Math.ceil(vp.height);
-    const ctx = canvas.getContext("2d")!;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvasContext: ctx, canvas, viewport: vp }).promise;
@@ -107,6 +107,8 @@ export async function renderPages(bytes: ArrayBuffer, scale = 2): Promise<Render
     try { images.push(...drawnRegions(canvas, scale, base.width, base.height, raw, images)); } catch (e) { console.warn(e); }
     out.push({ images, texts, frags, src: canvas.toDataURL("image/jpeg", 0.85), width: base.width, height: base.height });
     page.cleanup();
+    onPage?.(out[out.length - 1]!, i - 1, doc.numPages);
+    await new Promise((r) => setTimeout(r, 0));
   }
   await loadingTask.destroy();
   return out;
