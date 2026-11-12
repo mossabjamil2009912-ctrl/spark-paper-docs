@@ -1,8 +1,11 @@
 [{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "app.lovable.spark_paper_docs.twa",
-        "sha256_cert_fingerprints": ["6F:5E:4A:91:1E:FE:46:A5:B9:B4:2C:1C:28:56:C6:61:02:E9:7F:87:26:3F:03:66:EF:50:AD:DA:FF:76:F8:AF"]
-      }
-    }]
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.lovable.spark_paper_docs.twa",
+    "sha256_cert_fingerprints": [
+      "D2:CF:18:F8:15:8E:9C:78:3E:1A:AC:99:9A:3F:CA:37:22:81:8D:EA:15:90:10:78:09:2F:12:6B:36:56:9F:8F",
+      "6F:5E:4A:91:1E:FE:46:A5:B9:B4:2C:1C:28:56:C6:61:02:E9:7F:87:26:3F:03:66:EF:50:AD:DA:FF:76:F8:AF"
+    ]
+  }
+}]
