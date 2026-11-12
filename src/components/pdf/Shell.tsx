@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { FileUp } from "lucide-react";
 import logo from "@/assets/actes-logo-v2.png.asset.json";
+import { ServiceLinkSettings } from "./ServiceLinkSettings";
 import { useRef, useState, type ReactNode } from "react";
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -11,6 +12,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <Link to="/" className="flex items-center gap-2">
             <img src={logo.url} alt="أكتس" className="h-10 w-auto" />
           </Link>
+          <ServiceLinkSettings />
         </div>
       </header>
       <main>{children}</main>
