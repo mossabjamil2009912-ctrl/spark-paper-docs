@@ -112,7 +112,7 @@ function Index() {
           );
           if (t.href)
             return (
-              <a key={t.title} href={t.href} className="group rounded-xl border bg-card p-3 transition-all hover:-translate-y-0.5 hover:shadow-paper">
+              <a key={t.title} href={import.meta.env.BASE_URL + t.href.slice(1)} className="group rounded-xl border bg-card p-3 transition-all hover:-translate-y-0.5 hover:shadow-paper">
                 <div className="flex justify-center">{head}</div>
               </a>
             );
@@ -121,7 +121,7 @@ function Index() {
               {head}
               <div className="mt-2 grid grid-cols-2 gap-2">
                 {t.options!.map((o) => (
-                  <a key={o.href} href={o.href} dir="auto" className="rounded-xl border bg-secondary px-2 py-1.5 text-center text-xs font-bold text-foreground transition-colors hover:border-accent hover:text-accent">
+                  <a key={o.href} href={import.meta.env.BASE_URL + o.href.slice(1)} dir="auto" className="rounded-xl border bg-secondary px-2 py-1.5 text-center text-xs font-bold text-foreground transition-colors hover:border-accent hover:text-accent">
                     {o.label}
                   </a>
                 ))}
