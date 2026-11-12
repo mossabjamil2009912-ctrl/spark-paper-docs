@@ -28,3 +28,9 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+- PDF processing runs entirely in the browser (pdf-lib for writing, pdfjs-dist lazily imported for rendering); edited text (Latin and Arabic) is written as real vector text — Arabic via bundled TTFs in public/fonts, pre-shaped and placed glyph-by-glyph in visual order because pdf-lib cannot shape or reliably order RTL; drawings/signatures stay a PNG overlay.
+- PDF↔Excel conversion (src/lib/excel-convert.ts) runs in the browser with lazily imported exceljs: PDF text fragments are laid on a grid (lines→rows, shared x-gaps→columns) with sampled colours; Excel→PDF draws fills, borders and vector text with the bundled IBM Plex Sans Arabic font. pdfjs needs fontExtraProperties:true to expose real font names (bold detection).
+- Document translation (src/routes/translate.tsx) sends only extracted text strings to a createServerFn calling the AI gateway (structured JSON array in/out, batched, de-duplicated); files are rebuilt in the browser — xlsx cells replaced in place via exceljs, PDF lines covered and rewritten as vector text via applyEdits.
+- Offline support uses vite-plugin-pwa (generateSW, swDest dist/client/sw.js) registered only from src/lib/register-sw.ts, which refuses dev/preview/iframes — keeps previews from serving stale caches.
+- Text cover rectangles come from coverFor() in pdf-render.ts, clamped to neighbouring lines — so covers never hide adjacent text.
