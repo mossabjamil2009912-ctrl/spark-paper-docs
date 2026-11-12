@@ -253,7 +253,7 @@ export async function keepAlive(): Promise<(msg?: string) => void> {
     lock?.release().catch(() => {});
     ac?.close().catch(() => {});
     if (msg && document.visibilityState !== "visible" && "Notification" in window && Notification.permission === "granted") {
-      try { new Notification("A'CTES", { body: msg, icon: "/icons/icon-192.png" }); } catch { /* ignore */ }
+      try { new Notification("A'CTES", { body: msg, icon: `${import.meta.env.BASE_URL}icons/icon-192.png` }); } catch { /* ignore */ }
     }
   };
 }

@@ -118,7 +118,7 @@ export function isVectorable(text: string) {
 function arabicFontFile(t: VecText) {
   const f = (t.font ?? "").toLowerCase();
   const serif = /amiri|serif|naskh|times/.test(f.split(",")[0] ?? "") && !/sans/.test(f.split(",")[0] ?? "");
-  return `/fonts/${serif ? "Amiri" : "IBMPlexSansArabic"}-${t.bold ? "Bold" : "Regular"}.ttf`;
+  return `${import.meta.env.BASE_URL}fonts/${serif ? "Amiri" : "IBMPlexSansArabic"}-${t.bold ? "Bold" : "Regular"}.ttf`;
 }
 
 function hex(c: string) {

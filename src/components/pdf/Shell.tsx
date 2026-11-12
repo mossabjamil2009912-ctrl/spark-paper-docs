@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { FileUp } from "lucide-react";
-import logo from "@/assets/actes-logo-v2.png.asset.json";
+import logoUrl from "@/assets/actes-logo-v2.png";
 import { ServiceLinkSettings } from "./ServiceLinkSettings";
 import { useRef, useState, type ReactNode } from "react";
 
@@ -10,7 +10,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <Link to="/" className="flex items-center gap-2">
-            <img src={logo.url} alt="أكتس" className="h-10 w-auto" />
+            <img src={logoUrl} alt="أكتس" className="h-10 w-auto" />
           </Link>
           <ServiceLinkSettings />
         </div>
