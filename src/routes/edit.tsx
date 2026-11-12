@@ -331,15 +331,40 @@ function PageCanvas({
     return v.every((c) => c >= 240) ? "#ffffff" : "#" + best;
   };
 
+  const taking = useRef(false);
   const takeOriginal = async (k: number) => {
-    const o = origImgs[k]!;
-    const bg = await ringColor(o);
-    const item: ImageItem = { kind: "image", x: o.x, y: o.y, w: o.w, h: o.h, src: o.src, img: mkImg(o.src) };
-    const e = 1 / Math.max(page.width, 1);
-    onAdd({ kind: "rect", x: o.x - e, y: o.y - e, w: o.w + 2 * e, h: o.h + 2 * e, color: bg }, item);
-    setTaken((s) => new Set(s).add(k));
-    setSelImg(item);
-    return item;
+    if (taking.current) return;
+    taking.current = true;
+    try {
+      // A picture is often stored as several overlapping pieces: take them all together
+      // so no copy is left behind when it moves or resizes.
+      const hit = (a: Box, b: Box) => a.x < b.x + b.w + 0.003 && b.x < a.x + a.w + 0.003 && a.y < b.y + b.h + 0.003 && b.y < a.y + a.h + 0.003;
+      const group = new Set([k]);
+      let grew = true;
+      while (grew) {
+        grew = false;
+        origImgs.forEach((o, j) => { if (!group.has(j) && !taken.has(j) && [...group].some((g) => hit(origImgs[g]!, o))) { group.add(j); grew = true; } });
+      }
+      const gs = [...group].map((j) => origImgs[j]!);
+      const x = Math.min(...gs.map((g) => g.x)), y = Math.min(...gs.map((g) => g.y));
+      const o = { x, y, w: Math.max(...gs.map((g) => g.x + g.w)) - x, h: Math.max(...gs.map((g) => g.y + g.h)) - y };
+      let src = origImgs[k]!.src;
+      if (gs.length > 1) {
+        const pi = new Image(); pi.src = page.src; await pi.decode().catch(() => {});
+        const W = pi.naturalWidth, H = pi.naturalHeight;
+        const cv = document.createElement("canvas");
+        cv.width = Math.max(1, Math.round(o.w * W)); cv.height = Math.max(1, Math.round(o.h * H));
+        cv.getContext("2d")!.drawImage(pi, o.x * W, o.y * H, o.w * W, o.h * H, 0, 0, cv.width, cv.height);
+        src = cv.toDataURL("image/png");
+      }
+      const bg = await ringColor(o);
+      const item: ImageItem = { kind: "image", ...o, src, img: mkImg(src) };
+      const e = 1.5 / Math.max(page.width, 1);
+      onAdd({ kind: "rect", x: o.x - e, y: o.y - e, w: o.w + 2 * e, h: o.h + 2 * e, color: bg }, item);
+      setTaken((s) => { const n = new Set(s); group.forEach((j) => n.add(j)); return n; });
+      setSelImg(item);
+      return item;
+    } finally { taking.current = false; }
   };
 
   const addPicture = async (f: File) => {
