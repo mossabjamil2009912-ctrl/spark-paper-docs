@@ -45,6 +45,7 @@ export default defineConfig({
   },
   vite: {
     base: BASE,
+    define: { "import.meta.env.VITE_STATIC_PAGES": JSON.stringify(PAGES ? "true" : "false") },
     plugins: [
       swForClientBuild(),
       VitePWA({
