@@ -391,7 +391,7 @@ export async function xlsxToPdf(data: ArrayBuffer): Promise<Uint8Array> {
       const key = bold ? "Bold" : "Regular";
       let f = cache.get(key);
       if (!f) {
-        const bytes = await (await fetch(`/fonts/IBMPlexSansArabic-${key}.ttf`)).arrayBuffer();
+        const bytes = await (await fetch(`${import.meta.env.BASE_URL}fonts/IBMPlexSansArabic-${key}.ttf`)).arrayBuffer();
         f = await doc.embedFont(bytes, { subset: false });
         cache.set(key, f);
       }
