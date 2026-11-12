@@ -11,7 +11,8 @@ import type { Plugin } from "vite";
 // GitHub Pages build (`bun run build:pages`): static files served from /spark-paper-docs/.
 // Every other build (Lovable preview/publish) keeps the root path and server output unchanged.
 const PAGES = process.env["GITHUB_PAGES"] === "true";
-const BASE = PAGES ? "/spark-paper-docs/" : "/";
+// Custom domain (actes.tech) serves the site from the root; set PAGES_BASE to use a subpath again.
+const BASE = PAGES ? (process.env["PAGES_BASE"] || "/") : "/";
 
 // vite-plugin-pwa skips sw.js when the build runs as several environments (client + server).
 // Generate it explicitly once the client environment has been written.
