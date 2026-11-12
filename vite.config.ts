@@ -37,7 +37,7 @@ export default defineConfig({
     server: { entry: "server" },
     ...(PAGES
       ? {
-          router: { basepath: BASE.replace(/\/$/, "") },
+          router: { basepath: BASE.replace(/\/$/, "") || "/" },
           pages: [{ path: "/" }],
           prerender: { enabled: true, crawlLinks: true, failOnError: false },
         }
