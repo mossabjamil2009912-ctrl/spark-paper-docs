@@ -20,7 +20,7 @@ export default defineConfig({
     server: { entry: "server" },
     ...(PAGES
       ? {
-          router: { basepath: BASE },
+          router: { basepath: BASE.replace(/\/$/, "") },
           spa: { enabled: true, prerender: { outputPath: "/index.html", crawlLinks: true } },
           prerender: { enabled: true, crawlLinks: true, failOnError: false },
         }
