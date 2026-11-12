@@ -7,13 +7,27 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { VitePWA } from "vite-plugin-pwa";
 
+// GitHub Pages build (`bun run build:pages`): static files served from /spark-paper-docs/.
+// Every other build (Lovable preview/publish) keeps the root path and server output unchanged.
+const PAGES = process.env.GITHUB_PAGES === "true";
+const BASE = PAGES ? "/spark-paper-docs/" : "/";
+
 export default defineConfig({
+  ...(PAGES ? { nitro: false as const } : {}),
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
+    ...(PAGES
+      ? {
+          router: { basepath: BASE },
+          spa: { enabled: true, prerender: { outputPath: "/index.html", crawlLinks: true } },
+          prerender: { enabled: true, crawlLinks: true, failOnError: false },
+        }
+      : {}),
   },
   vite: {
+    base: BASE,
     plugins: [
       VitePWA({
         strategies: "generateSW",
