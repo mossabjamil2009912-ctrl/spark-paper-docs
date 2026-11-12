@@ -32,8 +32,8 @@ jobs:
       - name: Prepare Pages output
         run: |
           cd dist/client
-          # Unknown deep links fall back to the app shell.
-          cp _shell.html 404.html
+          # Unknown addresses fall back to the app (it then shows its own "page not found").
+          cp index.html 404.html
           touch .nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
