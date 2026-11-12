@@ -10,33 +10,167 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CompressRouteImport } from './routes/compress'
+import { Route as EditRouteImport } from './routes/edit'
+import { Route as ExcelToPdfRouteImport } from './routes/excel-to-pdf'
+import { Route as MergeRouteImport } from './routes/merge'
+import { Route as OrganizeRouteImport } from './routes/organize'
+import { Route as PdfToExcelRouteImport } from './routes/pdf-to-excel'
+import { Route as PdfToImagesRouteImport } from './routes/pdf-to-images'
+import { Route as SplitRouteImport } from './routes/split'
+import { Route as StampRouteImport } from './routes/stamp'
+import { Route as TranslateRouteImport } from './routes/translate'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompressRoute = CompressRouteImport.update({
+  id: '/compress',
+  path: '/compress',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditRoute = EditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExcelToPdfRoute = ExcelToPdfRouteImport.update({
+  id: '/excel-to-pdf',
+  path: '/excel-to-pdf',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MergeRoute = MergeRouteImport.update({
+  id: '/merge',
+  path: '/merge',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrganizeRoute = OrganizeRouteImport.update({
+  id: '/organize',
+  path: '/organize',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PdfToExcelRoute = PdfToExcelRouteImport.update({
+  id: '/pdf-to-excel',
+  path: '/pdf-to-excel',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PdfToImagesRoute = PdfToImagesRouteImport.update({
+  id: '/pdf-to-images',
+  path: '/pdf-to-images',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SplitRoute = SplitRouteImport.update({
+  id: '/split',
+  path: '/split',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StampRoute = StampRouteImport.update({
+  id: '/stamp',
+  path: '/stamp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TranslateRoute = TranslateRouteImport.update({
+  id: '/translate',
+  path: '/translate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/compress': typeof CompressRoute
+  '/edit': typeof EditRoute
+  '/excel-to-pdf': typeof ExcelToPdfRoute
+  '/merge': typeof MergeRoute
+  '/organize': typeof OrganizeRoute
+  '/pdf-to-excel': typeof PdfToExcelRoute
+  '/pdf-to-images': typeof PdfToImagesRoute
+  '/split': typeof SplitRoute
+  '/stamp': typeof StampRoute
+  '/translate': typeof TranslateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/compress': typeof CompressRoute
+  '/edit': typeof EditRoute
+  '/excel-to-pdf': typeof ExcelToPdfRoute
+  '/merge': typeof MergeRoute
+  '/organize': typeof OrganizeRoute
+  '/pdf-to-excel': typeof PdfToExcelRoute
+  '/pdf-to-images': typeof PdfToImagesRoute
+  '/split': typeof SplitRoute
+  '/stamp': typeof StampRoute
+  '/translate': typeof TranslateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/compress': typeof CompressRoute
+  '/edit': typeof EditRoute
+  '/excel-to-pdf': typeof ExcelToPdfRoute
+  '/merge': typeof MergeRoute
+  '/organize': typeof OrganizeRoute
+  '/pdf-to-excel': typeof PdfToExcelRoute
+  '/pdf-to-images': typeof PdfToImagesRoute
+  '/split': typeof SplitRoute
+  '/stamp': typeof StampRoute
+  '/translate': typeof TranslateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/compress'
+    | '/edit'
+    | '/excel-to-pdf'
+    | '/merge'
+    | '/organize'
+    | '/pdf-to-excel'
+    | '/pdf-to-images'
+    | '/split'
+    | '/stamp'
+    | '/translate'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/compress'
+    | '/edit'
+    | '/excel-to-pdf'
+    | '/merge'
+    | '/organize'
+    | '/pdf-to-excel'
+    | '/pdf-to-images'
+    | '/split'
+    | '/stamp'
+    | '/translate'
+  id:
+    | '__root__'
+    | '/'
+    | '/compress'
+    | '/edit'
+    | '/excel-to-pdf'
+    | '/merge'
+    | '/organize'
+    | '/pdf-to-excel'
+    | '/pdf-to-images'
+    | '/split'
+    | '/stamp'
+    | '/translate'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CompressRoute: typeof CompressRoute
+  EditRoute: typeof EditRoute
+  ExcelToPdfRoute: typeof ExcelToPdfRoute
+  MergeRoute: typeof MergeRoute
+  OrganizeRoute: typeof OrganizeRoute
+  PdfToExcelRoute: typeof PdfToExcelRoute
+  PdfToImagesRoute: typeof PdfToImagesRoute
+  SplitRoute: typeof SplitRoute
+  StampRoute: typeof StampRoute
+  TranslateRoute: typeof TranslateRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +182,91 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/compress': {
+      id: '/compress'
+      path: '/compress'
+      fullPath: '/compress'
+      preLoaderRoute: typeof CompressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/edit': {
+      id: '/edit'
+      path: '/edit'
+      fullPath: '/edit'
+      preLoaderRoute: typeof EditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/excel-to-pdf': {
+      id: '/excel-to-pdf'
+      path: '/excel-to-pdf'
+      fullPath: '/excel-to-pdf'
+      preLoaderRoute: typeof ExcelToPdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/merge': {
+      id: '/merge'
+      path: '/merge'
+      fullPath: '/merge'
+      preLoaderRoute: typeof MergeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/organize': {
+      id: '/organize'
+      path: '/organize'
+      fullPath: '/organize'
+      preLoaderRoute: typeof OrganizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pdf-to-excel': {
+      id: '/pdf-to-excel'
+      path: '/pdf-to-excel'
+      fullPath: '/pdf-to-excel'
+      preLoaderRoute: typeof PdfToExcelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pdf-to-images': {
+      id: '/pdf-to-images'
+      path: '/pdf-to-images'
+      fullPath: '/pdf-to-images'
+      preLoaderRoute: typeof PdfToImagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/split': {
+      id: '/split'
+      path: '/split'
+      fullPath: '/split'
+      preLoaderRoute: typeof SplitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stamp': {
+      id: '/stamp'
+      path: '/stamp'
+      fullPath: '/stamp'
+      preLoaderRoute: typeof StampRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/translate': {
+      id: '/translate'
+      path: '/translate'
+      fullPath: '/translate'
+      preLoaderRoute: typeof TranslateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CompressRoute: CompressRoute,
+  EditRoute: EditRoute,
+  ExcelToPdfRoute: ExcelToPdfRoute,
+  MergeRoute: MergeRoute,
+  OrganizeRoute: OrganizeRoute,
+  PdfToExcelRoute: PdfToExcelRoute,
+  PdfToImagesRoute: PdfToImagesRoute,
+  SplitRoute: SplitRoute,
+  StampRoute: StampRoute,
+  TranslateRoute: TranslateRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

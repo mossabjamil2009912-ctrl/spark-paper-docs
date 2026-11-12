@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.lovable.paper_spark_pdf_studio.twa",
+        "sha256_cert_fingerprints": ["60:9F:6E:3C:D5:BB:FC:0D:85:E6:09:E4:64:72:7B:E2:73:DB:4E:79:CD:18:B1:63:05:F3:CA:ED:52:E7:CE:8A"]
+      }
+    }]
