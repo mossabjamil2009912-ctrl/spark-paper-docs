@@ -408,7 +408,8 @@ function PageCanvas({
     onReplace([selImg], [n]); setSelImg(n);
   };
   const deleteSel = () => { if (selImg) { onReplace([selImg], []); setSelImg(null); } };
-  useEffect(() => { if (tool !== "image") setSelImg(null); }, [tool]);
+  const imgTouch = tool === "image" || tool === "edittext" || tool === "none";
+  useEffect(() => { setSelImg(null); }, [tool]);
 
   const redraw = useCallback(() => {
     const c = canvas.current;
@@ -569,6 +570,7 @@ function PageCanvas({
   const onDown = (e: React.PointerEvent) => {
     const [x, y] = pt(e);
     if (tool === "image") { setSelImg(null); return; }
+    if (selImg) { setSelImg(null); if (tool !== "edittext") return; }
     if (tool === "edittext") {
       e.preventDefault();
       if (draft) { commitDraft(); return; }
@@ -726,16 +728,16 @@ function PageCanvas({
           }}
         />
       )}
-      {tool === "image" && (
+      {imgTouch && (
         <>
           {origImgs.map((o, k) => taken.has(k) ? null : (
             <button key={"o" + k} type="button" aria-label="صورة" onClick={() => void takeOriginal(k)}
-              className="absolute outline-dashed outline-1 outline-accent/60 hover:bg-accent/10"
+              className={tool === "image" ? "absolute outline-dashed outline-1 outline-accent/60 hover:bg-accent/10" : "absolute"}
               style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, width: `${o.w * 100}%`, height: `${o.h * 100}%` }} />
           ))}
           {items.map((it, k) => it.kind !== "image" || it === selImg ? null : (
             <button key={"i" + k} type="button" aria-label="صورة" onClick={() => setSelImg(it)}
-              className="absolute outline-dashed outline-1 outline-accent/60 hover:bg-accent/10"
+              className={tool === "image" ? "absolute outline-dashed outline-1 outline-accent/60 hover:bg-accent/10" : "absolute"}
               style={{ left: `${it.x * 100}%`, top: `${it.y * 100}%`, width: `${it.w * 100}%`, height: `${it.h * 100}%` }} />
           ))}
           {selImg && (() => {
@@ -757,7 +759,7 @@ function PageCanvas({
               </div>
             );
           })()}
-          <Button size="sm" className="absolute top-2 left-2 z-10" onClick={() => fileIn.current?.click()}><ImagePlus /> إضافة صورة</Button>
+          {tool === "image" && <Button size="sm" className="absolute top-2 left-2 z-10" onClick={() => fileIn.current?.click()}><ImagePlus /> إضافة صورة</Button>}
           <input ref={fileIn} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void addPicture(f); }} />
         </>
       )}
