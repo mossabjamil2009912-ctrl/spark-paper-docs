@@ -24,3 +24,16 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## النشر على GitHub Pages
+
+1. في المستودع: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+2. أي دفع إلى الفرع `main` يشغّل `.github/workflows/deploy.yml` فيبني الموقع (`bun run build:pages`) وينشره.
+3. الرابط: https://mossabjamil2009912-ctrl.github.io/spark-paper-docs/
+
+ملاحظة: ميزة «ترجمة المستندات» تحتاج خادماً (مفتاح الذكاء الاصطناعي لا يوضع في المتصفح)، لذلك لا تعمل على GitHub Pages؛ بقية الأدوات تعمل بالكامل داخل المتصفح.
+
+### حزمة Android عبر PWABuilder
+1. افتح https://www.pwabuilder.com وأدخل رابط الموقع أعلاه.
+2. Package for stores → Android → حدّد Package ID ثم Generate، وحمّل الحزمة.
+3. ارفع ملف `assetlinks.json` الناتج إلى `public/.well-known/` (يحتاج أن يكون على جذر النطاق، انظر الملاحظة في التعليمات).
