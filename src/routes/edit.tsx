@@ -359,7 +359,7 @@ function PageCanvas({
       }
       const bg = await ringColor(o);
       const item: ImageItem = { kind: "image", ...o, src, img: mkImg(src) };
-      const e = 1.5 / Math.max(page.width, 1);
+      const e = 3 / Math.max(page.width, 1);
       onAdd({ kind: "rect", x: o.x - e, y: o.y - e, w: o.w + 2 * e, h: o.h + 2 * e, color: bg }, item);
       setTaken((s) => { const n = new Set(s); group.forEach((j) => n.add(j)); return n; });
       setSelImg(item);

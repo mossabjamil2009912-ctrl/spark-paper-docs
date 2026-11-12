@@ -90,6 +90,8 @@ export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page:
         const fn = ops.fnArray[k];
         if (fn === O.save) stack.push(ctm.slice());
         else if (fn === O.restore) ctm = stack.pop() ?? ctm;
+        else if (fn === O.paintFormXObjectBegin) { stack.push(ctm.slice()); const m = (ops.argsArray[k] as unknown[])[0] as number[] | null; if (m && m.length === 6) ctm = pdfjs.Util.transform(ctm, m); }
+        else if (fn === O.paintFormXObjectEnd) ctm = stack.pop() ?? ctm;
         else if (fn === O.transform) ctm = pdfjs.Util.transform(ctm, ops.argsArray[k] as number[]);
         else if (fn === O.paintImageXObject || fn === O.paintInlineImageXObject || fn === O.paintImageXObjectRepeat) {
           const pts = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([a, b]) => [ctm[0]! * a! + ctm[2]! * b! + ctm[4]!, ctm[1]! * a! + ctm[3]! * b! + ctm[5]!]);
