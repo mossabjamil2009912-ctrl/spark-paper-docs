@@ -37,7 +37,7 @@ export default defineConfig({
     ...(PAGES
       ? {
           router: { basepath: BASE.replace(/\/$/, "") },
-          spa: { enabled: true, prerender: { outputPath: "/index.html", crawlLinks: true } },
+          spa: { enabled: true, prerender: { outputPath: "/_shell", crawlLinks: false } },
           prerender: { enabled: true, crawlLinks: true, failOnError: false },
         }
       : {}),
