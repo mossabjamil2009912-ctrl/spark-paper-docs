@@ -53,6 +53,7 @@ function EditPage() {
   const [saving, setSaving] = useState(false);
   const [future, setFuture] = useState<Item[][][]>([]);
   const [zoom, setZoom] = useState(1);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const keyRef = useRef<string | null>(null);
 
   // Saved signature/stamp is reused across files.
@@ -73,9 +74,15 @@ function EditPage() {
     const bytes = await f.arrayBuffer();
     setFile({ name: f.name, bytes });
     setPages(null);
+    setProgress(null);
     try {
-      const r = await renderPages(bytes, 2);
-      setPages(r);
+      const scale = window.innerWidth < 768 ? 1.5 : 2;
+      const r = await renderPages(bytes, scale, (pg, i, n) => {
+        setProgress({ done: i + 1, total: n });
+        setPages((cur) => [...(cur ?? []), pg]);
+        setItems((cur) => (i === 0 ? [[]] : [...cur, []]));
+      });
+      setProgress(null);
       const key = draftKey(f.name, f.size);
       keyRef.current = key;
       const saved = await loadDraft<Item[][]>(key);
@@ -83,7 +90,7 @@ function EditPage() {
       if (saved && saved.length === r.length && saved.some((l) => l.length)) {
         setItems(saved);
         toast.success("استرجعنا تعديلاتك السابقة على هذا الملف", { action: { label: "ابدأ من جديد", onClick: () => { setItems(r.map(() => [])); clearDraft(key); } } });
-      } else setItems(r.map(() => []));
+      } else setItems((cur) => r.map((_, i) => cur[i] ?? []));
       setTool("edittext");
     } catch (e) {
       console.error(e);
@@ -231,7 +238,7 @@ function EditPage() {
       </div>
 
       {!pages ? (
-        <Busy />
+        <Busy text={progress ? `جارٍ تجهيز الصفحة ${progress.done + 1} من ${progress.total}…` : "جارٍ فتح الملف…"} />
       ) : (
         <div className="overflow-x-auto bg-stage py-6">
           <div className="mx-auto flex max-w-4xl flex-col gap-6 px-3" style={zoom > 1 ? { width: `${zoom * 100}%`, maxWidth: `${zoom * 56}rem` } : undefined}>
@@ -250,6 +257,9 @@ function EditPage() {
                 onReplace={(old, its) => commit(i, (l) => [...l.filter((x) => !old.includes(x)), ...its])}
               />
             ))}
+            {progress && progress.done < progress.total && (
+              <Busy text={`جارٍ تجهيز الصفحة ${progress.done + 1} من ${progress.total}…`} />
+            )}
           </div>
         </div>
       )}
