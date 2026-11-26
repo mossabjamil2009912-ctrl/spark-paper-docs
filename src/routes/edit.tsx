@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Eraser, Highlighter, Pen, Signature, Type, Undo2, Download, MousePointer2, FilePenLine, SquareDashedMousePointer, ImageIcon, Trash2, ImagePlus, Redo2, ZoomIn, ZoomOut, Square, MoveUpRight } from "lucide-react";
+import { Eraser, Highlighter, Pen, Signature, Type, Undo2, Download, FilePenLine, SquareDashedMousePointer, Trash2, ImagePlus, Redo2, ZoomIn, ZoomOut, Square, MoveUpRight } from "lucide-react";
 import { clearDraft, draftKey, loadDraft, saveDraft } from "@/lib/draft-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -27,10 +27,9 @@ export const Route = createFileRoute("/edit")({
 type Tool = "none" | "edittext" | "image" | "area" | "text" | "rect" | "arrow" | "pen" | "highlight" | "sign" | "erase";
 const COLORS = ["#111827", "#1d4ed8", "#c2410c", "#15803d", "#facc15"] as const;
 const tools: { id: Tool; label: string; icon: typeof Pen }[] = [
-  { id: "none", label: "تصفح", icon: MousePointer2 },
-  { id: "edittext", label: "تعديل النص", icon: FilePenLine },
+  { id: "edittext", label: "تعديل", icon: FilePenLine },
   { id: "area", label: "تحديد حر", icon: SquareDashedMousePointer },
-  { id: "image", label: "الصور", icon: ImageIcon },
+  { id: "image", label: "إضافة صورة", icon: ImagePlus },
   { id: "text", label: "نص", icon: Type },
   { id: "sign", label: "توقيع", icon: Signature },
   { id: "rect", label: "مربع", icon: Square },
@@ -45,7 +44,7 @@ function EditPage() {
   const [pages, setPages] = useState<RenderedPage[] | null>(null);
   const [items, setItems] = useState<Item[][]>([]);
   const [history, setHistory] = useState<Item[][][]>([]);
-  const [tool, setTool] = useState<Tool>("none");
+  const [tool, setTool] = useState<Tool>("edittext");
   const [color, setColor] = useState<string>(COLORS[0]);
   const [textSize, setTextSize] = useState(0.025);
   const [sig, setSig] = useState<{ src: string; aspect: number } | null>(null);
@@ -267,7 +266,7 @@ function EditPage() {
       {padOpen && (
         <SignaturePad
           color={color === COLORS[4] ? COLORS[0] : color}
-          onCancel={() => { setPadOpen(false); if (!sig) setTool("none"); }}
+          onCancel={() => { setPadOpen(false); if (!sig) setTool("edittext"); }}
           onDone={(src, aspect) => { setSig({ src, aspect }); setPadOpen(false); setTool("sign"); }}
         />
       )}
@@ -316,7 +315,7 @@ function PageCanvas({
     const ctx = cv.getContext("2d", { willReadFrequently: true })!; ctx.drawImage(img, 0, 0);
     const d = ctx.getImageData(0, 0, W, H).data;
     const counts = new Map<string, number>();
-    const x0 = Math.floor(b.x * W) - 3, x1 = Math.ceil((b.x + b.w) * W) + 3, y0 = Math.floor(b.y * H) - 3, y1 = Math.ceil((b.y + b.h) * H) + 3;
+    const x0 = Math.floor(b.x * W) - 6, x1 = Math.ceil((b.x + b.w) * W) + 6, y0 = Math.floor(b.y * H) - 6, y1 = Math.ceil((b.y + b.h) * H) + 6;
     const add = (x: number, y: number) => {
       if (x < 0 || y < 0 || x >= W || y >= H) return;
       const i = (y * W + x) * 4;
@@ -328,7 +327,7 @@ function PageCanvas({
     let best = "ffffff", n = 0;
     counts.forEach((v, k) => { if (v > n) { n = v; best = k; } });
     const v = best.match(/../g)!.map((h) => parseInt(h, 16));
-    return v.every((c) => c >= 240) ? "#ffffff" : "#" + best;
+    void v; return "#" + best;
   };
 
   const taking = useRef(false);
@@ -694,7 +693,7 @@ function PageCanvas({
           type="button"
           title={t.str}
           onClick={() => editOriginal(t, k)}
-          className={`absolute rounded-sm transition-colors ${edited.has(k) ? "outline-dashed outline-1 outline-accent/60" : ""} hover:bg-accent/20 hover:outline hover:outline-1 hover:outline-accent active:bg-accent/30`}
+          className={`absolute rounded-sm transition-colors ${edited.has(k) ? "outline-dashed outline-1 outline-accent/60" : "outline outline-1 outline-gray-400/60"} hover:bg-accent/20 hover:outline hover:outline-1 hover:outline-accent active:bg-accent/30`}
           style={{ left: `${t.x * 100}%`, top: `${t.y * 100}%`, width: `${t.w * 100}%`, height: `${t.h * 100}%` }}
         />
       ))}
@@ -732,12 +731,12 @@ function PageCanvas({
         <>
           {origImgs.map((o, k) => taken.has(k) ? null : (
             <button key={"o" + k} type="button" aria-label="صورة" onClick={() => void takeOriginal(k)}
-              className={tool === "image" ? "absolute outline-dashed outline-1 outline-accent/60 hover:bg-accent/10" : "absolute"}
+              className="absolute outline-dashed outline-2 outline-accent/70 hover:bg-accent/10"
               style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, width: `${o.w * 100}%`, height: `${o.h * 100}%` }} />
           ))}
           {items.map((it, k) => it.kind !== "image" || it === selImg ? null : (
             <button key={"i" + k} type="button" aria-label="صورة" onClick={() => setSelImg(it)}
-              className={tool === "image" ? "absolute outline-dashed outline-1 outline-accent/60 hover:bg-accent/10" : "absolute"}
+              className="absolute outline-dashed outline-2 outline-accent/70 hover:bg-accent/10"
               style={{ left: `${it.x * 100}%`, top: `${it.y * 100}%`, width: `${it.w * 100}%`, height: `${it.h * 100}%` }} />
           ))}
           {selImg && (() => {
