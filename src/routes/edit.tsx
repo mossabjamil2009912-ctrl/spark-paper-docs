@@ -239,7 +239,7 @@ function EditPage() {
       {!pages ? (
         <Busy text={progress ? `جارٍ تجهيز الصفحة ${progress.done + 1} من ${progress.total}…` : "جارٍ فتح الملف…"} />
       ) : (
-        <div className="overflow-x-auto bg-stage py-6">
+        <div className="overflow-x-auto bg-stage pt-6 pb-[50vh] md:pb-6">
           <div className="mx-auto flex max-w-4xl flex-col gap-6 px-3" style={zoom > 1 ? { width: `${zoom * 100}%`, maxWidth: `${zoom * 56}rem` } : undefined}>
             {pages.map((p, i) => (
               <PageCanvas
@@ -724,6 +724,23 @@ function PageCanvas({
             el.dataset["ready"] = "1";
             el.parentElement!.style.setProperty("--pw", `${el.parentElement!.clientWidth}px`);
             requestAnimationFrame(() => el.focus({ preventScroll: true }));
+            // Keep the edited line visible above the on-screen keyboard (phones).
+            const reveal = () => {
+              const vv = window.visualViewport;
+              const r = el.getBoundingClientRect();
+              const vh = vv ? vv.height : window.innerHeight;
+              const top = vv ? vv.offsetTop : 0;
+              const safeTop = top + 140; // below the sticky header + toolbar
+              const safeBottom = top + vh - 16;
+              if (r.top < safeTop || r.bottom > safeBottom) {
+                window.scrollBy({ top: r.top - (top + Math.max(140, vh * 0.3)), behavior: "smooth" });
+              }
+            };
+            const vv = window.visualViewport;
+            const onResize = () => { if (document.activeElement === el) reveal(); };
+            vv?.addEventListener("resize", onResize);
+            el.addEventListener("blur", () => vv?.removeEventListener("resize", onResize), { once: true });
+            setTimeout(reveal, 350);
           }}
         />
       )}
