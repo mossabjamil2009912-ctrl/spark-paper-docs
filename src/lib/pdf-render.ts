@@ -53,6 +53,9 @@ export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page:
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvasContext: ctx, canvas, viewport: vp }).promise;
     const raw: Box[] = [];
+    // Font objects (real names, bold flags) only resolve once the operator list is loaded.
+    const opsP = page.getOperatorList().catch(() => null);
+    await opsP;
     try {
       const tc = await page.getTextContent();
       const styles = tc.styles as Record<string, { fontFamily?: string }>;
@@ -92,7 +95,8 @@ export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page:
       ...sampleColors(ctx, b.x * scale, b.y * scale, b.w * scale, b.h * 1.15 * scale) }));
     const images: PdfImage[] = [];
     try {
-      const ops = await page.getOperatorList();
+      const ops = await opsP;
+      if (!ops) throw new Error("no operator list");
       const O = pdfjs.OPS;
       const stack: number[][] = [];
       let ctm = base.transform.slice() as number[];

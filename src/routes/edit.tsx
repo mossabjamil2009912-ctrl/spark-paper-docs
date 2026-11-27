@@ -47,6 +47,15 @@ function EditPage() {
   const [items, setItems] = useState<Item[][]>([]);
   const [history, setHistory] = useState<Item[][][]>([]);
   const [tool, setTool] = useState<Tool>("edittext");
+  // Keep an open file from being lost by an accidental back/refresh/pull-down.
+  useEffect(() => {
+    if (!file) return;
+    const stop = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", stop);
+    const prev = document.documentElement.style.overscrollBehaviorY;
+    document.documentElement.style.overscrollBehaviorY = "contain";
+    return () => { window.removeEventListener("beforeunload", stop); document.documentElement.style.overscrollBehaviorY = prev; };
+  }, [file]);
   const [color, setColor] = useState<string>(COLORS[0]);
   const [textSize, setTextSize] = useState(0.025);
   const [sig, setSig] = useState<{ src: string; aspect: number } | null>(null);
