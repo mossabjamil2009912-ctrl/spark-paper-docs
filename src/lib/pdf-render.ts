@@ -141,10 +141,14 @@ export function groupLines(items: Box[]): Box[] {
       if (i) {
         const p = l[i - 1]!;
         const gap = rtl ? p.x - (b.x + b.w) : b.x - (p.x + p.w);
-        if (gap > b.h * 0.15 && !str.endsWith(" ") && !b.str.startsWith(" ")) str += " ";
+        // Arabic PDFs often split one word into kerned pieces: only a real word gap between letters is a space.
+        const joined = rtl && AR.test(str.slice(-1)) && AR.test(b.str.charAt(0));
+        if (gap > b.h * (joined ? 0.35 : 0.15) && !str.endsWith(" ") && !b.str.startsWith(" ")) str += " ";
       }
       str += b.str;
     });
+    // Presentation forms (pre-joined glyphs) don't join with typed letters: normalise to plain Arabic.
+    if (rtl) str = str.normalize("NFKC").replace(/[\u200C\u200D]/g, "");
     const x = Math.min(...l.map((b) => b.x)), y = Math.min(...l.map((b) => b.y));
     const r = Math.max(...l.map((b) => b.x + b.w)), bt = Math.max(...l.map((b) => b.y + b.h));
     const main = [...l].sort((a, b) => b.w - a.w)[0]!;
@@ -226,7 +230,8 @@ function drawnRegions(canvas: HTMLCanvasElement, scale: number, pw: number, ph: 
     for (let gy = Math.max(0, Math.floor((r.y - pad) / G)); gy < Math.min(gh, Math.ceil((r.y + r.h + pad) / G)); gy++)
       for (let gx = Math.max(0, Math.floor((r.x - pad) / G)); gx < Math.min(gw, Math.ceil((r.x + r.w + pad) / G)); gx++) masked[gy * gw + gx] = 1;
   };
-  texts.forEach((t) => mark(t, 1));
+  // Mask a band below/above each line too, so descending letter tails (م ر و) aren't taken for pictures.
+  texts.forEach((t) => mark({ x: t.x, y: t.y - t.h * 0.25, w: t.w, h: t.h * 1.7 }, 1));
   imgs.forEach((t) => mark(t, 0));
   const ink = new Uint8Array(gw * gh);
   const cell = G * scale;
