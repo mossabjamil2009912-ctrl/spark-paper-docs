@@ -117,7 +117,7 @@ export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page:
 }
 
 type Box = { str: string; x: number; y: number; w: number; h: number; fontName?: string | undefined; generic?: string | undefined };
-const AR = /[\u0600-\u06FF]/;
+const AR = /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 
 /** Merge pdf.js fragments sitting on the same baseline and close together into whole lines. */
 export function groupLines(items: Box[]): Box[] {
