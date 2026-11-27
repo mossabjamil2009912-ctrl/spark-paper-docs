@@ -30,7 +30,7 @@ describe("automatic original PDF text formatting", () => {
   it("exports the original embedded bold font at 24 points and the original baseline", async () => {
     const doc = await PDFDocument.create();
     doc.registerFontkit(fontkit);
-    const font = await doc.embedFont(readFileSync("public/fonts/Cairo-Bold.ttf"), { subset: false });
+    const font = await doc.embedFont(Uint8Array.from(readFileSync("public/fonts/Cairo-Bold.ttf")), { subset: false });
     doc.addPage([595, 842]).drawText("Original", { x: 60, y: 700, size: 24, font });
     const bytes = (await doc.save()).slice().buffer;
     const source = [...(await readSourceFonts(bytes)).values()][0];
