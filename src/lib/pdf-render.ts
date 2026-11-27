@@ -261,6 +261,8 @@ function drawnRegions(canvas: HTMLCanvasElement, scale: number, pw: number, ph: 
     const x = x1 * G, y = y1 * G, w = (x2 - x1 + 1) * G, h = (y2 - y1 + 1) * G;
     if (cnt < 6 || w < 16 || h < 8) continue; // skip rules, dots, noise
     if (w > pw * 0.9 && h > ph * 0.9) continue; // full-page background
+    // A box holding real text lines is a card/frame, not a picture: leave the text editable.
+    if (texts.some((t) => t.x + t.w / 2 > x && t.x + t.w / 2 < x + w && t.y + t.h / 2 > y && t.y + t.h / 2 < y + h)) continue;
     const c = document.createElement("canvas");
     c.width = Math.ceil(w * scale); c.height = Math.ceil(h * scale);
     c.getContext("2d")!.drawImage(canvas, x * scale, y * scale, w * scale, h * scale, 0, 0, c.width, c.height);
