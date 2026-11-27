@@ -1,6 +1,7 @@
 import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { hasArabic, toVisual } from "./arabic";
+import { matchedPdfFont, pdfFontUrl } from "./pdf-fonts";
 
 /** Parse "1-3, 5, 8-" style ranges into 0-based page indices (in order, unique). */
 export function parseRanges(input: string, pageCount: number): number[] {
@@ -116,9 +117,7 @@ export function isVectorable(text: string) {
 }
 
 function arabicFontFile(t: VecText) {
-  const f = (t.font ?? "").toLowerCase();
-  const serif = /amiri|serif|naskh|times/.test(f.split(",")[0] ?? "") && !/sans/.test(f.split(",")[0] ?? "");
-  return `${import.meta.env.BASE_URL}fonts/${serif ? "Amiri" : "IBMPlexSansArabic"}-${t.bold ? "Bold" : "Regular"}.ttf`;
+  return pdfFontUrl(t.font ?? "", t.bold);
 }
 
 function hex(c: string) {
@@ -165,10 +164,11 @@ export async function applyEdits(bytes: ArrayBuffer, edits: Record<number, PageE
     if (e.overlay) page.drawImage(await doc.embedPng(e.overlay), { x: bx, y: by, width: W, height: H });
     for (const t of e.texts) {
       const ar = hasArabic(t.text);
-      const key = ar ? arabicFontFile(t) : stdFont(t);
+      const local = ar || !!matchedPdfFont(t.font ?? "");
+      const key = local ? arabicFontFile(t) : stdFont(t);
       let font = fonts.get(key);
       if (!font) {
-        font = ar
+        font = local
           ? await doc.embedFont(await (await fetch(key)).arrayBuffer(), { subset: false })
           : await doc.embedFont(key as StandardFonts);
         fonts.set(key, font);

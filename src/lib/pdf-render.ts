@@ -1,3 +1,4 @@
+import { matchedPdfFont } from "./pdf-fonts";
 // Browser-only: pdfjs is imported lazily so SSR never evaluates it.
 type Pdfjs = typeof import("pdfjs-dist");
 let lib: Promise<Pdfjs> | null = null;
@@ -19,6 +20,8 @@ export type PageText = { str: string; x: number; y: number; w: number; h: number
 
 /** Map a PDF font name + generic family to a CSS font stack close to the original. */
 export function cssFontFor(name: string, generic: string, rtl: boolean): string {
+  const matched = matchedPdfFont(name);
+  if (matched) return `"${matched.family}", ${matched.family === "Amiri" ? "serif" : "sans-serif"}`;
   const n = name.toLowerCase();
   const serif = /times|serif|roman|georgia|garamond|minion|cambria|book|amiri|naskh|traditional|lotus|mudir|badr/.test(n) && !/sans/.test(n);
   const mono = /mono|courier|consol/.test(n) || generic === "monospace";
@@ -56,17 +59,24 @@ export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page:
       const fontInfo = (fn: string) => {
         let real = "";
         try { const o = page.commonObjs.get(fn) as { name?: string; bold?: boolean; italic?: boolean; black?: boolean } | undefined; real = o?.name ?? ""; if (o?.bold || o?.black) real += "-Bold"; if (o?.italic) real += "-Italic"; } catch { /* not loaded */ }
-        return { real, generic: styles[fn]?.fontFamily ?? "sans-serif" };
+        let spaceUnit: number | undefined;
+        try {
+          const o = page.commonObjs.get(fn) as { widths?: Record<string, number>; fontMatrix?: number[] } | undefined;
+          const width = o?.widths?.["32"] ?? o?.widths?.[" "];
+          if (width && width > 0) spaceUnit = width * Math.abs(o?.fontMatrix?.[0] ?? 0.001);
+        } catch { /* use geometric fallback when PDF space metrics are unavailable */ }
+        return { real, generic: styles[fn]?.fontFamily ?? "sans-serif", spaceUnit };
       };
       for (const r of tc.items) {
         const it = r as { str?: string; transform?: number[]; width?: number; fontName?: string };
-        if (!it.str?.trim() || !it.transform) continue;
+        if (!it.str || !it.transform) continue;
         const t = pdfjs.Util.transform(base.transform, it.transform);
         const h = Math.hypot(t[2]!, t[3]!);
         const w = it.width ?? 0;
-        if (h <= 0 || w <= 0) continue;
+        if (h <= 0 || w < 0 || (w === 0 && it.str.trim())) continue;
         const fi = fontInfo(it.fontName ?? "");
-        raw.push({ str: it.str, x: t[4]!, y: t[5]! - h, w, h, fontName: fi.real, generic: fi.generic });
+        raw.push({ str: it.str, x: t[4]!, y: t[5]! - h, w, h, fontName: fi.real, generic: fi.generic,
+          ...(fi.spaceUnit ? { spaceWidth: fi.spaceUnit * h } : {}) });
       }
     } catch (e) { console.warn(e); }
     const texts = groupLines(raw).map((l) => {
@@ -116,7 +126,7 @@ export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page:
   return out;
 }
 
-type Box = { str: string; x: number; y: number; w: number; h: number; fontName?: string | undefined; generic?: string | undefined };
+type Box = { str: string; x: number; y: number; w: number; h: number; spaceWidth?: number; fontName?: string | undefined; generic?: string | undefined };
 const AR = /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 
 /** Merge pdf.js fragments sitting on the same baseline and close together into whole lines. */
@@ -133,17 +143,20 @@ export function groupLines(items: Box[]): Box[] {
     });
     if (line) line.push(it); else lines.push([it]);
   }
-  return lines.map((l) => {
+  return lines.filter((l) => l.some((b) => b.str.trim())).map((l) => {
     const rtl = l.some((b) => AR.test(b.str));
     l.sort((a, b) => (rtl ? b.x - a.x : a.x - b.x));
     let str = "";
     l.forEach((b, i) => {
       if (i) {
-        const p = l[i - 1]!;
+        const p = l[i - 1];
+        if (!p) return;
         const gap = rtl ? p.x - (b.x + b.w) : b.x - (p.x + p.w);
-        // Arabic PDFs often split one word into kerned pieces: only a real word gap between letters is a space.
-        const joined = rtl && AR.test(str.slice(-1)) && AR.test(b.str.charAt(0));
-        if (gap > b.h * (joined ? 0.35 : 0.15) && !str.endsWith(" ") && !b.str.startsWith(" ")) str += " ";
+        // Preserve explicit PDF spaces first; infer missing ones from the font's
+        // actual space advance, not a blanket Arabic threshold that merges words.
+        const space = b.spaceWidth ?? p.spaceWidth;
+        const threshold = space && space > 0 ? space * 0.6 : Math.min(p.h, b.h) * 0.15;
+        if (gap > threshold && !/\s$/.test(str) && !/^\s/.test(b.str)) str += " ";
       }
       str += b.str;
     });
