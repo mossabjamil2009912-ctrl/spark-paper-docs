@@ -29,15 +29,7 @@ type Tool = "none" | "edittext" | "image" | "area" | "text" | "rect" | "arrow" |
 const COLORS = ["#111827", "#1d4ed8", "#c2410c", "#15803d", "#facc15"] as const;
 const tools: { id: Tool; label: string; icon: typeof Pen }[] = [
   { id: "edittext", label: "تعديل", icon: FilePenLine },
-  { id: "area", label: "تحديد حر", icon: SquareDashedMousePointer },
   { id: "image", label: "إضافة صورة", icon: ImagePlus },
-  { id: "text", label: "نص", icon: Type },
-  { id: "sign", label: "توقيع", icon: Signature },
-  { id: "rect", label: "مربع", icon: Square },
-  { id: "arrow", label: "سهم", icon: MoveUpRight },
-  { id: "pen", label: "قلم", icon: Pen },
-  { id: "highlight", label: "تظليل", icon: Highlighter },
-  { id: "erase", label: "ممحاة", icon: Eraser },
 ];
 
 function EditPage() {
@@ -204,17 +196,6 @@ function EditPage() {
                 <t.icon className="h-4 w-4 md:h-5 md:w-5" />
                 {t.label}
               </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-1.5">
-            {COLORS.map((c) => (
-              <button
-                key={c}
-                aria-label="لون"
-                onClick={() => setColor(c)}
-                className={`h-6 w-6 rounded-full border-2 ${color === c ? "border-accent ring-2 ring-accent/30" : "border-card"}`}
-                style={{ background: c }}
-              />
             ))}
           </div>
           {tool === "text" && (
@@ -420,7 +401,8 @@ function PageCanvas({
   };
   const deleteSel = () => { if (selImg) { onReplace([selImg], []); setSelImg(null); } };
   const imgTouch = tool === "image" || tool === "edittext" || tool === "none";
-  useEffect(() => { setSelImg(null); }, [tool]);
+  const [pending, setPending] = useState<number | null>(null);
+  useEffect(() => { setSelImg(null); setPending(null); }, [tool]);
 
   const redraw = useCallback(() => {
     const c = canvas.current;
@@ -581,6 +563,7 @@ function PageCanvas({
 
   const onDown = (e: React.PointerEvent) => {
     const [x, y] = pt(e);
+    if (pending !== null) { setPending(null); return; }
     if (tool === "image") { setSelImg(null); return; }
     if (selImg) { setSelImg(null); if (tool !== "edittext") return; }
     if (tool === "edittext") {
@@ -764,7 +747,7 @@ function PageCanvas({
       {imgTouch && (
         <>
           {origImgs.map((o, k) => taken.has(k) ? null : (
-            <button key={"o" + k} type="button" aria-label="صورة" onClick={() => void takeOriginal(k)}
+            <button key={"o" + k} type="button" aria-label="صورة" onClick={() => { setSelImg(null); setPending(k); }}
               className="absolute outline-dashed outline-2 outline-accent/70 hover:bg-accent/10"
               style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, width: `${o.w * 100}%`, height: `${o.h * 100}%` }} />
           ))}
@@ -773,6 +756,19 @@ function PageCanvas({
               className="absolute outline-dashed outline-2 outline-accent/70 hover:bg-accent/10"
               style={{ left: `${it.x * 100}%`, top: `${it.y * 100}%`, width: `${it.w * 100}%`, height: `${it.h * 100}%` }} />
           ))}
+          {pending !== null && origImgs[pending] && !taken.has(pending) && (() => {
+            const o = origImgs[pending]!;
+            return (
+              <div className="absolute outline outline-2 outline-primary"
+                style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, width: `${o.w * 100}%`, height: `${o.h * 100}%` }}>
+                <div className="absolute -top-11 left-1/2 z-10 flex -translate-x-1/2 gap-1 rounded-lg border bg-card p-1 shadow" onPointerDown={(e) => e.stopPropagation()}>
+                  <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => { setPending(null); void takeOriginal(pending); }}>تحريك وتكبير</Button>
+                  <Button size="sm" variant="ghost" className="h-8 px-2 text-destructive" onClick={() => { setPending(null); void takeOriginal(pending).then((it) => { if (it) onReplace([it], []); setSelImg(null); }); }}><Trash2 /> حذف</Button>
+                  <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setPending(null)}>إلغاء</Button>
+                </div>
+              </div>
+            );
+          })()}
           {selImg && (() => {
             const b = drag?.item === selImg ? drag.box : selImg;
             return (
