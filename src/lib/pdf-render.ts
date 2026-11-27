@@ -1,4 +1,5 @@
 import { matchedPdfFont } from "./pdf-fonts";
+import { readSourceFonts, sfntWeight, type SourceFont } from "./pdf-source-fonts";
 // Browser-only: pdfjs is imported lazily so SSR never evaluates it.
 type Pdfjs = typeof import("pdfjs-dist");
 let lib: Promise<Pdfjs> | null = null;
@@ -16,7 +17,7 @@ function getPdfjs() {
 }
 
 /** Box in page fractions (0..1). */
-export type PageText = { str: string; x: number; y: number; w: number; h: number; bg: string; fg: string; font: string; bold: boolean; italic: boolean; rtl: boolean };
+export type PageText = { str: string; x: number; y: number; w: number; h: number; bg: string; fg: string; font: string; bold: boolean; italic: boolean; rtl: boolean; weight?: number; size?: number; baseline?: number; sourceFont?: SourceFont };
 
 /** Map a PDF font name + generic family to a CSS font stack close to the original. */
 export function cssFontFor(name: string, generic: string, rtl: boolean): string {
@@ -38,6 +39,7 @@ export type RenderedPage = { src: string; width: number; height: number; texts: 
 /** Render each page to a JPEG data URL. width/height are the displayed size in PDF points. */
 export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page: RenderedPage, index: number, total: number) => void): Promise<RenderedPage[]> {
   const pdfjs = await getPdfjs();
+  const sourceFonts = await readSourceFonts(bytes).catch(() => new Map<string, SourceFont>());
   const loadingTask = pdfjs.getDocument({ data: new Uint8Array(bytes.slice(0)), fontExtraProperties: true });
   const doc = await loadingTask.promise;
   const out: RenderedPage[] = [];
@@ -61,14 +63,23 @@ export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page:
       const styles = tc.styles as Record<string, { fontFamily?: string }>;
       const fontInfo = (fn: string) => {
         let real = "";
-        try { const o = page.commonObjs.get(fn) as { name?: string; bold?: boolean; italic?: boolean; black?: boolean } | undefined; real = o?.name ?? ""; if (o?.bold || o?.black) real += "-Bold"; if (o?.italic) real += "-Italic"; } catch { /* not loaded */ }
+        let weight = 400;
+        let sourceFont: SourceFont | undefined;
+        try {
+          const o = page.commonObjs.get(fn) as { name?: string; bold?: boolean; italic?: boolean; black?: boolean; data?: Uint8Array } | undefined;
+          real = o?.name ?? "";
+          sourceFont = sourceFonts.get(real);
+          weight = sourceFont?.weight ?? (o?.data ? sfntWeight(o.data) : undefined) ?? (o?.bold || o?.black || /bold|black|heavy|semibold/i.test(real) ? 700 : 400);
+          if (weight >= 600) real += "-Bold";
+          if (sourceFont?.italic || o?.italic) real += "-Italic";
+        } catch { /* not loaded */ }
         let spaceUnit: number | undefined;
         try {
           const o = page.commonObjs.get(fn) as { widths?: Record<string, number>; fontMatrix?: number[] } | undefined;
           const width = o?.widths?.["32"] ?? o?.widths?.[" "];
           if (width && width > 0) spaceUnit = width * Math.abs(o?.fontMatrix?.[0] ?? 0.001);
         } catch { /* use geometric fallback when PDF space metrics are unavailable */ }
-        return { real, generic: styles[fn]?.fontFamily ?? "sans-serif", spaceUnit };
+        return { real, generic: styles[fn]?.fontFamily ?? "sans-serif", spaceUnit, weight, sourceFont };
       };
       for (const r of tc.items) {
         const it = r as { str?: string; transform?: number[]; width?: number; fontName?: string };
@@ -79,6 +90,7 @@ export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page:
         if (h <= 0 || w < 0 || (w === 0 && it.str.trim())) continue;
         const fi = fontInfo(it.fontName ?? "");
         raw.push({ str: it.str, x: t[4]!, y: t[5]! - h, w, h, fontName: fi.real, generic: fi.generic,
+          weight: fi.weight, ...(fi.sourceFont ? { sourceFont: fi.sourceFont } : {}),
           ...(fi.spaceUnit ? { spaceWidth: fi.spaceUnit * h } : {}) });
       }
     } catch (e) { console.warn(e); }
@@ -89,7 +101,9 @@ export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page:
       const bold = /bold|black|heavy|semibold|demi|w[6-9]/i.test(fn);
       const italic = /italic|oblique/i.test(fn);
       return { str: l.str, x: l.x / base.width, y: l.y / base.height, w: l.w / base.width, h: (l.h * 1.2) / base.height, ...c,
-        font: cssFontFor(fn, l.generic ?? "sans-serif", rtl), bold, italic, rtl };
+        font: l.sourceFont ? `"PDF-${l.sourceFont.name}", ${cssFontFor(fn, l.generic ?? "sans-serif", rtl)}` : cssFontFor(fn, l.generic ?? "sans-serif", rtl), bold, italic, rtl,
+        weight: l.weight ?? (bold ? 700 : 400), size: l.h / base.width, baseline: (l.y + l.h) / base.height,
+        ...(l.sourceFont ? { sourceFont: l.sourceFont } : {}) };
     });
     const frags: Frag[] = raw.map((b) => ({ str: b.str, x: b.x, y: b.y, w: b.w, h: b.h, fontName: b.fontName ?? "", generic: b.generic ?? "sans-serif",
       ...sampleColors(ctx, b.x * scale, b.y * scale, b.w * scale, b.h * 1.15 * scale) }));
@@ -130,7 +144,7 @@ export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page:
   return out;
 }
 
-type Box = { str: string; x: number; y: number; w: number; h: number; spaceWidth?: number; fontName?: string | undefined; generic?: string | undefined };
+type Box = { str: string; x: number; y: number; w: number; h: number; spaceWidth?: number; fontName?: string | undefined; generic?: string | undefined; weight?: number; sourceFont?: SourceFont };
 const AR = /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 
 /** Merge pdf.js fragments sitting on the same baseline and close together into whole lines. */
@@ -169,7 +183,8 @@ export function groupLines(items: Box[]): Box[] {
     const x = Math.min(...l.map((b) => b.x)), y = Math.min(...l.map((b) => b.y));
     const r = Math.max(...l.map((b) => b.x + b.w)), bt = Math.max(...l.map((b) => b.y + b.h));
     const main = [...l].sort((a, b) => b.w - a.w)[0]!;
-    return { str: str.trim(), x, y, w: r - x, h: bt - y, fontName: main.fontName, generic: main.generic };
+    return { str: str.trim(), x, y, w: r - x, h: bt - y, fontName: main.fontName, generic: main.generic,
+      ...(main.weight !== undefined ? { weight: main.weight } : {}), ...(main.sourceFont ? { sourceFont: main.sourceFont } : {}) };
   });
 }
 

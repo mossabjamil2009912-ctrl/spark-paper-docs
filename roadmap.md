@@ -2,4 +2,4 @@
 - [ ] Phase 2: saved stamp/signature, arrows & boxes, page numbers & watermark
 - [ ] Phase 3: PDF to images, batch compress
 
-- [x] Current request: repair Arabic word spacing and match local fonts in editing/export; verified mobile font controls, selected weight, and saved PDF rendering; all 24 tests pass.
+- [x] Current request: removed formatting controls; preserved embedded source font, weight, size, colour and baseline; verified mobile edit/save and desktop reopen. Subsets missing new glyphs use the matching local fallback.

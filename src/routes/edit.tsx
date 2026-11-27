@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Busy, FileDrop, Shell } from "@/components/pdf/Shell";
 import { SignaturePad } from "@/components/pdf/SignaturePad";
-import { TextFormatToolbar } from "@/components/pdf/TextFormatToolbar";
 import { loadPdfFonts } from "@/lib/pdf-fonts";
 import { drawItems, fontCss, hitTest, measureText, type ImageItem, type Item } from "@/lib/annotations";
 import { applyEdits, baseName, downloadBytes, isVectorable, type PageEdits } from "@/lib/pdf-ops";
@@ -218,7 +217,7 @@ function EditPage() {
               />
             ))}
           </div>
-          {(tool === "text" || tool === "edittext") && (
+          {tool === "text" && (
             <select value={textSize} onChange={(e) => setTextSize(+e.target.value)} className="h-8 rounded-md border bg-background px-2 text-sm">
               <option value={0.018}>صغير</option>
               <option value={0.025}>متوسط</option>
@@ -303,11 +302,9 @@ function PageCanvas({
   const canvas = useRef<HTMLCanvasElement>(null);
   const live = useRef<Item | null>(null);
   const shapeStart = useRef<[number, number] | null>(null);
-  const [draft, setDraft] = useState<{ x: number; y: number; text: string; size?: number; color?: string; bg?: string; font?: string; bold?: boolean; italic?: boolean; ltr?: boolean; cover?: { x: number; y: number; w: number; h: number } } | null>(null);
+  const [draft, setDraft] = useState<{ x: number; y: number; text: string; size?: number; color?: string; bg?: string; font?: string; bold?: boolean; italic?: boolean; weight?: number; baseline?: number; sourceFont?: RenderedPage["texts"][number]["sourceFont"]; ltr?: boolean; cover?: { x: number; y: number; w: number; h: number } } | null>(null);
   type Draft = NonNullable<typeof draft>;
   const editInput = useRef<HTMLTextAreaElement>(null);
-  const formatControls = useRef<HTMLDivElement>(null);
-  const fontMenuOpen = useRef(false);
   const [edited, setEdited] = useState<Map<number, { draft: Draft; items: Item[] }>>(new Map());
   const editingIdx = useRef<number | null>(null);
   const [tick, setTick] = useState(0);
@@ -449,17 +446,18 @@ function PageCanvas({
   };
 
   const commitDraft = () => {
+    if (!draft) return;
     const size = draft?.size ?? textSize;
     const cover = draft?.cover;
     const c = draft?.color ?? color;
-    const st = { font: draft?.font, bold: draft?.bold, italic: draft?.italic };
-    const txt = draft?.text.trim() ? [{ kind: "text" as const, x: draft!.x, y: draft!.y, text: draft!.text, size, color: c, w: measureText(draft!.text, size, st), ...st, ltr: draft!.ltr }] : [];
+    const st = { font: draft.font, bold: draft.bold, italic: draft.italic, weight: draft.weight, baseline: draft.baseline, sourceFont: draft.sourceFont };
+    const txt = draft.text.trim() ? [{ kind: "text" as const, x: draft.x, y: draft.y, text: draft.text, size, color: c, w: measureText(draft.text, size, st), ...st, ltr: draft.ltr }] : [];
     if (cover) {
       const its: Item[] = [{ kind: "rect", ...cover, color: draft?.bg ?? "#ffffff" }, ...txt];
       const k = editingIdx.current;
       const prev = k !== null ? edited.get(k) : undefined;
       if (prev) onReplace(prev.items, its); else onAdd(...its);
-      if (k !== null) setEdited((s) => new Map(s).set(k, { draft: draft!, items: its }));
+      if (k !== null) setEdited((s) => new Map(s).set(k, { draft, items: its }));
     }
     else if (txt.length) onAdd(...txt);
     setDraft(null);
@@ -673,10 +671,11 @@ function PageCanvas({
     editingIdx.current = k;
     const prev = edited.get(k);
     if (prev) { setDraft({ ...prev.draft }); return; }
-    const st = { font: t.font, bold: t.bold, italic: t.italic };
-    let size = (t.h / 1.2) * aspect * 0.95;
-    const m = measureText(t.str, size, st);
-    if (m > 0) size = Math.min(size * 1.15, size * (t.w / m)); // match original line width
+    const st = { font: t.font, bold: t.bold, italic: t.italic,
+      ...(t.weight !== undefined ? { weight: t.weight } : {}),
+      ...(t.baseline !== undefined ? { baseline: t.baseline } : {}),
+      ...(t.sourceFont ? { sourceFont: t.sourceFont } : {}) };
+    const size = t.size ?? (t.h / 1.2) * aspect;
     setDraft({
       x: t.rtl ? t.x + t.w : t.x, y: t.y, text: t.str, size, color: t.fg, bg: t.bg, ...st, ltr: !t.rtl,
       cover: coverFor(page.texts, t),
@@ -713,18 +712,6 @@ function PageCanvas({
         />
       ))}
       {draft && (
-        <>
-        <div ref={formatControls} className="absolute inset-x-1 z-10 flex justify-start pointer-events-auto" style={{ top: `max(0px, calc(${draft.y * 100}% - 48px))` }}>
-          <TextFormatToolbar
-            font={draft.font ?? '"Amiri", serif'}
-            bold={draft.bold ?? false}
-            onFont={(font) => setDraft((current) => current ? { ...current, font } : null)}
-            onBold={() => setDraft((current) => current ? { ...current, bold: !current.bold } : null)}
-            onDone={commitDraft}
-            onMenu={(open) => { fontMenuOpen.current = open; }}
-            onFocusText={() => editInput.current?.focus({ preventScroll: true })}
-          />
-        </div>
         <textarea
           dir={draft.ltr ? "ltr" : draft.font ? "rtl" : "auto"}
           value={draft.text}
@@ -733,10 +720,7 @@ function PageCanvas({
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitDraft(); }
             if (e.key === "Escape") setDraft(null);
           }}
-          onBlur={(event) => {
-            if (fontMenuOpen.current || (event.relatedTarget instanceof Node && formatControls.current?.contains(event.relatedTarget))) return;
-            commitDraft();
-          }}
+          onBlur={commitDraft}
           placeholder="اكتب هنا…"
           className="absolute min-w-24 resize rounded border border-accent p-0 leading-[1.3] outline-none"
           style={{
@@ -746,7 +730,7 @@ function PageCanvas({
             background: draft.bg ?? "var(--paper, #fff)",
             fontSize: `calc(${draft.size ?? textSize} * var(--pw))`,
             fontFamily: draft.font ?? '"Amiri", serif',
-            fontWeight: draft.bold ? 700 : 400,
+            fontWeight: draft.weight ?? (draft.bold ? 700 : 400),
             fontStyle: draft.italic ? "italic" : "normal",
           }}
           ref={(el) => {
@@ -776,7 +760,6 @@ function PageCanvas({
             setTimeout(reveal, 350);
           }}
         />
-        </>
       )}
       {imgTouch && (
         <>

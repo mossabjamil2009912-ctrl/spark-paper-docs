@@ -1,9 +1,10 @@
 // All coordinates are fractions of the page (0..1); sizes are fractions of page width.
+import type { SourceFont } from "./pdf-source-fonts";
 /** x is the right edge for rtl text, the left edge for ltr text. */
-export type TextItem = { kind: "text"; x: number; y: number; text: string; size: number; color: string; w: number; font?: string | undefined; bold?: boolean | undefined; italic?: boolean | undefined; ltr?: boolean | undefined };
+export type TextItem = { kind: "text"; x: number; y: number; text: string; size: number; color: string; w: number; font?: string | undefined; bold?: boolean | undefined; italic?: boolean | undefined; ltr?: boolean | undefined; weight?: number | undefined; baseline?: number | undefined; sourceFont?: SourceFont | undefined };
 
-export const fontCss = (it: { size: number; font?: string | undefined; bold?: boolean | undefined; italic?: boolean | undefined }, px: number) =>
-  `${it.italic ? "italic " : ""}${it.bold ? 700 : it.font ? 400 : 500} ${px}px ${it.font ?? FONT}`;
+export const fontCss = (it: { size: number; font?: string | undefined; bold?: boolean | undefined; italic?: boolean | undefined; weight?: number | undefined }, px: number) =>
+  `${it.italic ? "italic " : ""}${it.weight ?? (it.bold ? 700 : it.font ? 400 : 500)} ${px}px ${it.font ?? FONT}`;
 export type PathItem = { kind: "path"; points: [number, number][]; color: string; width: number; alpha: number };
 export type ImageItem = { kind: "image"; x: number; y: number; w: number; h: number; src: string; img?: HTMLImageElement };
 export type RectItem = { kind: "rect"; x: number; y: number; w: number; h: number; color: string };
@@ -31,10 +32,10 @@ export function drawItems(ctx: CanvasRenderingContext2D, items: Item[], W: numbe
       ctx.save();
       ctx.fillStyle = it.color;
       ctx.font = fontCss(it, it.size * W);
-      ctx.textBaseline = "top";
+      ctx.textBaseline = it.baseline !== undefined ? "alphabetic" : "top";
       ctx.textAlign = it.ltr ? "left" : "right";
       ctx.direction = it.ltr ? "ltr" : "rtl";
-      it.text.split("\n").forEach((line, i) => ctx.fillText(line, it.x * W, it.y * H + i * it.size * W * 1.3));
+      it.text.split("\n").forEach((line, i) => ctx.fillText(line, it.x * W, (it.baseline ?? it.y) * H + i * it.size * W * 1.3));
       ctx.restore();
     } else if (it.kind === "rect") {
       ctx.fillStyle = it.color;
@@ -62,7 +63,7 @@ export function hitTest(items: Item[], x: number, y: number, aspect: number): nu
   return -1;
 }
 
-export function measureText(text: string, size: number, style: { font?: string | undefined; bold?: boolean | undefined; italic?: boolean | undefined } = {}) {
+export function measureText(text: string, size: number, style: { font?: string | undefined; bold?: boolean | undefined; italic?: boolean | undefined; weight?: number | undefined } = {}) {
   const c = document.createElement("canvas").getContext("2d")!;
   c.font = fontCss({ size, ...style }, size * 1000);
   return Math.max(...text.split("\n").map((l) => c.measureText(l).width)) / 1000;

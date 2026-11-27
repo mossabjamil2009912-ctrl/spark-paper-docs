@@ -2,6 +2,7 @@ import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont } from "pdf-lib"
 import fontkit from "@pdf-lib/fontkit";
 import { hasArabic, toVisual } from "./arabic";
 import { matchedPdfFont, pdfFontUrl, supportedArabicGlyph } from "./pdf-fonts";
+import { sourceFontBytes, sourceSupports, type SourceFont } from "./pdf-source-fonts";
 
 /** Parse "1-3, 5, 8-" style ranges into 0-based page indices (in order, unique). */
 export function parseRanges(input: string, pageCount: number): number[] {
@@ -98,7 +99,7 @@ export async function stampOverlays(
 }
 
 export type VecRect = { x: number; y: number; w: number; h: number; color: string };
-export type VecText = { x: number; y: number; text: string; size: number; color: string; font?: string | undefined; bold?: boolean | undefined; italic?: boolean | undefined; ltr?: boolean | undefined };
+export type VecText = { x: number; y: number; text: string; size: number; color: string; font?: string | undefined; bold?: boolean | undefined; italic?: boolean | undefined; ltr?: boolean | undefined; weight?: number | undefined; baseline?: number | undefined; sourceFont?: SourceFont | undefined };
 export type VecImage = { x: number; y: number; w: number; h: number; src: string };
 export type PageEdits = { overlay?: Uint8Array; rects: VecRect[]; texts: VecText[]; images?: VecImage[] };
 
@@ -164,11 +165,12 @@ export async function applyEdits(bytes: ArrayBuffer, edits: Record<number, PageE
     if (e.overlay) page.drawImage(await doc.embedPng(e.overlay), { x: bx, y: by, width: W, height: H });
     for (const t of e.texts) {
       const ar = hasArabic(t.text);
+      const source = t.sourceFont && sourceSupports(t.sourceFont, t.text) ? t.sourceFont : undefined;
       const local = ar || !!matchedPdfFont(t.font ?? "");
-      const key = local ? arabicFontFile(t) : stdFont(t);
+      const key = source ? source.data : local ? arabicFontFile(t) : stdFont(t);
       let font = fonts.get(key);
       if (!font) {
-        font = local
+        font = source ? await doc.embedFont(sourceFontBytes(source.data), { subset: false }) : local
           ? await doc.embedFont(await (await fetch(key)).arrayBuffer(), { subset: false })
           : await doc.embedFont(key as StandardFonts);
         fonts.set(key, font);
@@ -178,7 +180,7 @@ export async function applyEdits(bytes: ArrayBuffer, edits: Record<number, PageE
       const activeFont = font;
       const supported = ar ? new Set(activeFont.getCharacterSet()) : new Set<number>();
       t.text.split("\n").forEach((raw, i) => {
-        const y = top - t.y * H - asc - i * size * 1.3;
+        const y = top - (t.baseline !== undefined ? t.baseline * H : t.y * H + asc) - i * size * 1.3;
         const color = hex(t.color);
         if (!ar) {
           const w = activeFont.widthOfTextAtSize(raw, size);
