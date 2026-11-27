@@ -1,8 +1,21 @@
-import { PDFDict, PDFName, PDFRawStream, PDFDocument, decodePDFRawStream } from "pdf-lib";
+import { PDFDict, PDFName, PDFNumber, PDFRawStream, PDFDocument, decodePDFRawStream } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { hasArabic, toVisual } from "./arabic";
 
 export type SourceFont = { name: string; family: string; weight: number; italic: boolean; data: string; characters: number[] };
+export type PdfFontInfo = { weight: number; italic: boolean; sourceFont?: SourceFont };
+
+/** PDF descriptor/name evidence survives unusable subset programs and PDF.js remapping. */
+export function resolveFontWeight(info: { name?: string; weight?: number; flags?: number; programWeight?: number; bold?: boolean }): number {
+  const namedBold = /bold|black|heavy|semibold|demi|w[6-9]/i.test(info.name ?? "");
+  const forcedBold = ((info.flags ?? 0) & 0x40000) !== 0;
+  const weight = info.weight ?? info.programWeight ?? 400;
+  return namedBold || forcedBold || info.bold ? Math.max(700, weight) : weight;
+}
+
+export function isBoldText(text: { weight?: number | undefined; bold?: boolean | undefined }): boolean {
+  return (text.weight ?? (text.bold ? 700 : 400)) >= 600;
+}
 
 /** Read the real weight, including fonts whose external name omits Bold. */
 export function sfntWeight(bytes: Uint8Array): number | undefined {
@@ -33,8 +46,13 @@ export function sourceFontBytes(data: string) {
 
 /** Extract original Unicode font programs, not PDF.js's remapped rendering fonts. */
 export async function readSourceFonts(bytes: ArrayBuffer): Promise<Map<string, SourceFont>> {
+  const metadata = await readPdfFontInfo(bytes);
+  return new Map([...metadata].flatMap(([name, info]) => info.sourceFont ? [[name, info.sourceFont] as const] : []));
+}
+
+export async function readPdfFontInfo(bytes: ArrayBuffer): Promise<Map<string, PdfFontInfo>> {
   const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
-  const fonts = new Map<string, SourceFont>();
+  const fonts = new Map<string, PdfFontInfo>();
   for (const [, obj] of doc.context.enumerateIndirectObjects()) {
     if (!(obj instanceof PDFDict)) continue;
     const descriptor = obj.lookup(PDFName.of("FontDescriptor"));
@@ -43,20 +61,33 @@ export async function readSourceFonts(bytes: ArrayBuffer): Promise<Map<string, S
     const nameObj = descriptor.lookup(PDFName.of("FontName"));
     const name = (base instanceof PDFName ? base : nameObj instanceof PDFName ? nameObj : undefined)?.decodeText();
     if (!name || fonts.has(name)) continue;
+    const weightObj = descriptor.lookup(PDFName.of("FontWeight"));
+    const flagsObj = descriptor.lookup(PDFName.of("Flags"));
+    const descriptorWeight = weightObj instanceof PDFNumber ? weightObj.asNumber() : undefined;
+    const flags = flagsObj instanceof PDFNumber ? flagsObj.asNumber() : 0;
+    const info: PdfFontInfo = {
+      weight: resolveFontWeight({ name, flags, ...(descriptorWeight !== undefined ? { weight: descriptorWeight } : {}) }),
+      italic: /italic|oblique/i.test(name) || (flags & 64) !== 0,
+    };
+    fonts.set(name, info);
     for (const key of ["FontFile2", "FontFile3"]) {
       const stream = descriptor.lookup(PDFName.of(key));
       if (!(stream instanceof PDFRawStream)) continue;
       try {
         const data = decodePDFRawStream(stream).decode();
+        const programWeight = sfntWeight(data);
+        info.weight = resolveFontWeight({ name, flags, ...(descriptorWeight !== undefined ? { weight: descriptorWeight } : {}), ...(programWeight !== undefined ? { programWeight } : {}) });
         const f = fontkit.create(data);
         // Empty/PUA-only cmaps cannot accept ordinary typed text.
         if (!f.characterSet.some((c) => c >= 32 && c < 0xe000)) continue;
         const style = f.subfamilyName ?? "";
-        const weight = sfntWeight(data) ?? (/bold|black|heavy/i.test(style) ? 700 : 400);
+        const weight = resolveFontWeight({ name: `${name} ${style}`, weight: info.weight, flags });
+        info.weight = weight;
+        info.italic ||= /italic|oblique/i.test(style);
         let binary = "";
         for (let i = 0; i < data.length; i += 8192) binary += String.fromCharCode(...data.subarray(i, i + 8192));
-        const font: SourceFont = { name, family: f.familyName ?? name, weight, italic: /italic|oblique/i.test(style), data: btoa(binary), characters: f.characterSet };
-        fonts.set(name, font);
+        const font: SourceFont = { name, family: f.familyName ?? name, weight, italic: info.italic, data: btoa(binary), characters: f.characterSet };
+        info.sourceFont = font;
         if (typeof FontFace !== "undefined") {
           const face = new FontFace(`PDF-${name}`, data.slice().buffer, { weight: String(weight), style: font.italic ? "italic" : "normal" });
           document.fonts.add(await face.load());

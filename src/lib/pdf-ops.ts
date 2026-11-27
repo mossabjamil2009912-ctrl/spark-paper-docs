@@ -2,7 +2,7 @@ import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont } from "pdf-lib"
 import fontkit from "@pdf-lib/fontkit";
 import { hasArabic, toVisual } from "./arabic";
 import { matchedPdfFont, pdfFontUrl, supportedArabicGlyph } from "./pdf-fonts";
-import { sourceFontBytes, sourceSupports, type SourceFont } from "./pdf-source-fonts";
+import { isBoldText, sourceFontBytes, sourceSupports, type SourceFont } from "./pdf-source-fonts";
 
 /** Parse "1-3, 5, 8-" style ranges into 0-based page indices (in order, unique). */
 export function parseRanges(input: string, pageCount: number): number[] {
@@ -118,7 +118,7 @@ export function isVectorable(text: string) {
 }
 
 function arabicFontFile(t: VecText) {
-  return pdfFontUrl(t.font ?? "", t.bold);
+  return pdfFontUrl(t.font ?? "", isBoldText(t));
 }
 
 function hex(c: string) {
@@ -132,7 +132,7 @@ function hex(c: string) {
 function stdFont(t: VecText): StandardFonts {
   const f = (t.font ?? "").toLowerCase();
   const fam = /mono|courier/.test(f) ? "C" : /serif/.test(f) && !/sans/.test(f.split(",")[0] ?? "") ? "T" : "H";
-  const k = (t.bold ? "B" : "") + (t.italic ? "I" : "");
+  const k = (isBoldText(t) ? "B" : "") + (t.italic ? "I" : "");
   const map: Record<string, StandardFonts> = {
     H: StandardFonts.Helvetica, HB: StandardFonts.HelveticaBold, HI: StandardFonts.HelveticaOblique, HBI: StandardFonts.HelveticaBoldOblique,
     T: StandardFonts.TimesRoman, TB: StandardFonts.TimesRomanBold, TI: StandardFonts.TimesRomanItalic, TBI: StandardFonts.TimesRomanBoldItalic,

@@ -1,5 +1,5 @@
 import { matchedPdfFont } from "./pdf-fonts";
-import { readSourceFonts, sfntWeight, type SourceFont } from "./pdf-source-fonts";
+import { readPdfFontInfo, resolveFontWeight, sfntWeight, type PdfFontInfo, type SourceFont } from "./pdf-source-fonts";
 // Browser-only: pdfjs is imported lazily so SSR never evaluates it.
 type Pdfjs = typeof import("pdfjs-dist");
 let lib: Promise<Pdfjs> | null = null;
@@ -39,7 +39,7 @@ export type RenderedPage = { src: string; width: number; height: number; texts: 
 /** Render each page to a JPEG data URL. width/height are the displayed size in PDF points. */
 export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page: RenderedPage, index: number, total: number) => void): Promise<RenderedPage[]> {
   const pdfjs = await getPdfjs();
-  const sourceFonts = await readSourceFonts(bytes).catch(() => new Map<string, SourceFont>());
+  const sourceFonts = await readPdfFontInfo(bytes).catch(() => new Map<string, PdfFontInfo>());
   const loadingTask = pdfjs.getDocument({ data: new Uint8Array(bytes.slice(0)), fontExtraProperties: true });
   const doc = await loadingTask.promise;
   const out: RenderedPage[] = [];
@@ -68,10 +68,13 @@ export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page:
         try {
           const o = page.commonObjs.get(fn) as { name?: string; bold?: boolean; italic?: boolean; black?: boolean; data?: Uint8Array } | undefined;
           real = o?.name ?? "";
-          sourceFont = sourceFonts.get(real);
-          weight = sourceFont?.weight ?? (o?.data ? sfntWeight(o.data) : undefined) ?? (o?.bold || o?.black || /bold|black|heavy|semibold/i.test(real) ? 700 : 400);
+          const metadata = sourceFonts.get(real);
+          sourceFont = metadata?.sourceFont;
+          const programWeight = o?.data ? sfntWeight(o.data) : undefined;
+          weight = resolveFontWeight({ name: real, bold: !!(o?.bold || o?.black),
+            ...(metadata ? { weight: metadata.weight } : {}), ...(programWeight !== undefined ? { programWeight } : {}) });
           if (weight >= 600) real += "-Bold";
-          if (sourceFont?.italic || o?.italic) real += "-Italic";
+          if (metadata?.italic || o?.italic) real += "-Italic";
         } catch { /* not loaded */ }
         let spaceUnit: number | undefined;
         try {
@@ -98,7 +101,7 @@ export async function renderPages(bytes: ArrayBuffer, scale = 2, onPage?: (page:
       const c = sampleColors(ctx, l.x * scale, l.y * scale, l.w * scale, l.h * 1.2 * scale);
       const fn = l.fontName ?? "";
       const rtl = AR.test(l.str);
-      const bold = /bold|black|heavy|semibold|demi|w[6-9]/i.test(fn);
+      const bold = (l.weight ?? resolveFontWeight({ name: fn })) >= 600;
       const italic = /italic|oblique/i.test(fn);
       return { str: l.str, x: l.x / base.width, y: l.y / base.height, w: l.w / base.width, h: (l.h * 1.2) / base.height, ...c,
         font: l.sourceFont ? `"PDF-${l.sourceFont.name}", ${cssFontFor(fn, l.generic ?? "sans-serif", rtl)}` : cssFontFor(fn, l.generic ?? "sans-serif", rtl), bold, italic, rtl,
