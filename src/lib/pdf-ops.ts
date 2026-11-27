@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { hasArabic, toVisual } from "./arabic";
-import { matchedPdfFont, pdfFontUrl } from "./pdf-fonts";
+import { matchedPdfFont, pdfFontUrl, supportedArabicGlyph } from "./pdf-fonts";
 
 /** Parse "1-3, 5, 8-" style ranges into 0-based page indices (in order, unique). */
 export function parseRanges(input: string, pageCount: number): number[] {
@@ -175,23 +175,25 @@ export async function applyEdits(bytes: ArrayBuffer, edits: Record<number, PageE
       }
       const size = t.size * W;
       const asc = font.heightAtSize(size, { descender: false });
+      const activeFont = font;
+      const supported = ar ? new Set(activeFont.getCharacterSet()) : new Set<number>();
       t.text.split("\n").forEach((raw, i) => {
         const y = top - t.y * H - asc - i * size * 1.3;
         const color = hex(t.color);
         if (!ar) {
-          const w = font!.widthOfTextAtSize(raw, size);
-          page.drawText(raw, { x: bx + t.x * W - (t.ltr === false ? w : 0), y, size, font: font!, color });
+          const w = activeFont.widthOfTextAtSize(raw, size);
+          page.drawText(raw, { x: bx + t.x * W - (t.ltr === false ? w : 0), y, size, font: activeFont, color });
           return;
         }
         // Arabic: place each joined glyph ourselves in visual order, so the font
         // engine's own direction guessing can't flip the line.
-        const chars = [...toVisual(raw)];
-        const widths = chars.map((c) => font!.widthOfTextAtSize(c, size));
+        const chars = [...toVisual(raw)].map((c) => supportedArabicGlyph(c, supported));
+        const widths = chars.map((c) => activeFont.widthOfTextAtSize(c, size));
         const w = widths.reduce((a, b) => a + b, 0);
         let x = bx + t.x * W - (t.ltr === false ? w : 0);
         chars.forEach((c, j) => {
-          if (c.trim()) page.drawText(c, { x, y, size, font: font!, color });
-          x += widths[j]!;
+          if (c.trim()) page.drawText(c, { x, y, size, font: activeFont, color });
+          x += widths[j] ?? 0;
         });
       });
     }

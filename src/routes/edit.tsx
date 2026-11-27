@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Busy, FileDrop, Shell } from "@/components/pdf/Shell";
 import { SignaturePad } from "@/components/pdf/SignaturePad";
+import { TextFormatToolbar } from "@/components/pdf/TextFormatToolbar";
+import { loadPdfFonts } from "@/lib/pdf-fonts";
 import { drawItems, fontCss, hitTest, measureText, type ImageItem, type Item } from "@/lib/annotations";
 import { applyEdits, baseName, downloadBytes, isVectorable, type PageEdits } from "@/lib/pdf-ops";
 import { renderPages, sampleColors, coverFor, type RenderedPage } from "@/lib/pdf-render";
@@ -75,6 +77,7 @@ function EditPage() {
     setPages(null);
     setProgress(null);
     try {
+      await loadPdfFonts();
       const scale = window.innerWidth < 768 ? 1.5 : 2;
       const r = await renderPages(bytes, scale, (pg, i, n) => {
         setProgress({ done: i + 1, total: n });
@@ -293,6 +296,9 @@ function PageCanvas({
   const shapeStart = useRef<[number, number] | null>(null);
   const [draft, setDraft] = useState<{ x: number; y: number; text: string; size?: number; color?: string; bg?: string; font?: string; bold?: boolean; italic?: boolean; ltr?: boolean; cover?: { x: number; y: number; w: number; h: number } } | null>(null);
   type Draft = NonNullable<typeof draft>;
+  const editInput = useRef<HTMLTextAreaElement>(null);
+  const formatControls = useRef<HTMLDivElement>(null);
+  const fontMenuOpen = useRef(false);
   const [edited, setEdited] = useState<Map<number, { draft: Draft; items: Item[] }>>(new Map());
   const editingIdx = useRef<number | null>(null);
   const [tick, setTick] = useState(0);
@@ -698,6 +704,18 @@ function PageCanvas({
         />
       ))}
       {draft && (
+        <>
+        <div ref={formatControls} className="absolute inset-x-1 z-10 flex justify-start pointer-events-auto" style={{ top: `max(0px, calc(${draft.y * 100}% - 48px))` }}>
+          <TextFormatToolbar
+            font={draft.font ?? '"Amiri", serif'}
+            bold={draft.bold ?? false}
+            onFont={(font) => setDraft((current) => current ? { ...current, font } : null)}
+            onBold={() => setDraft((current) => current ? { ...current, bold: !current.bold } : null)}
+            onDone={commitDraft}
+            onMenu={(open) => { fontMenuOpen.current = open; }}
+            onFocusText={() => editInput.current?.focus({ preventScroll: true })}
+          />
+        </div>
         <textarea
           dir={draft.ltr ? "ltr" : draft.font ? "rtl" : "auto"}
           value={draft.text}
@@ -706,7 +724,10 @@ function PageCanvas({
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitDraft(); }
             if (e.key === "Escape") setDraft(null);
           }}
-          onBlur={commitDraft}
+          onBlur={(event) => {
+            if (fontMenuOpen.current || (event.relatedTarget instanceof Node && formatControls.current?.contains(event.relatedTarget))) return;
+            commitDraft();
+          }}
           placeholder="اكتب هنا…"
           className="absolute min-w-24 resize rounded border border-accent p-0 leading-[1.3] outline-none"
           style={{
@@ -720,9 +741,12 @@ function PageCanvas({
             fontStyle: draft.italic ? "italic" : "normal",
           }}
           ref={(el) => {
+            editInput.current = el;
             if (!el || el.dataset["ready"]) return;
             el.dataset["ready"] = "1";
-            el.parentElement!.style.setProperty("--pw", `${el.parentElement!.clientWidth}px`);
+            const parent = el.parentElement;
+            if (!parent) return;
+            parent.style.setProperty("--pw", `${parent.clientWidth}px`);
             requestAnimationFrame(() => el.focus({ preventScroll: true }));
             // Keep the edited line visible above the on-screen keyboard (phones).
             const reveal = () => {
@@ -743,6 +767,7 @@ function PageCanvas({
             setTimeout(reveal, 350);
           }}
         />
+        </>
       )}
       {imgTouch && (
         <>

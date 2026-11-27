@@ -20,6 +20,12 @@ export function pdfFontUrl(font: string, bold = false) {
 }
 
 let loaded: Promise<void> | undefined;
+/** Some fonts omit isolated presentation forms but contain their nominal letters. */
+export function supportedArabicGlyph(char: string, supported: ReadonlySet<number>) {
+  const point = char.codePointAt(0);
+  return point !== undefined && supported.has(point) ? char : char.normalize("NFKC");
+}
+
 export function loadPdfFonts() {
   if (!loaded) {
     loaded = Promise.all(PDF_FONTS.flatMap((f) => [false, true].map(async (bold) => {
